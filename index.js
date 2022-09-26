@@ -16,8 +16,8 @@ function getTeamHTML(team) {
     <a href="${team.url}" target="_blank">open</a>
   </td>
   <td>
-  <a href ="#" data-id="$(team.id)" class="delete-btn">❌</a>
-  <a href ="#" data-id="$(team.id)" class="edit-btn">🕹</a>
+    <a href ="#" data-id="${team.id}" class="delete-btn">❌</a>
+    <a href ="#" data-id="${team.id}" class="edit-btn">🕹</a>
   </td>
 </tr>`;
 }
@@ -51,7 +51,7 @@ function createTeamRequest(team) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(team),
-  });
+  }).then((r) => r.json());
 }
 
 function removeTeamRequest(id) {
@@ -61,6 +61,16 @@ function removeTeamRequest(id) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ id: id }),
+  }).then((r) => r.json());
+}
+
+function updateTeamRequest(team) {
+  return fetch("http://localhost:3000/teams-json/update", {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(team),
   }).then((r) => r.json());
 }
 
@@ -90,17 +100,22 @@ function submitForm(e) {
   e.preventDefault();
 
   const team = getFormValues();
+
   if (editId) {
-    console.warn("pls edit", editId, team);
+    team.id = editId;
+    updateTeamRequest(team).then((status) => {
+      if (status.success) {
+        $("#editForm").reset();
+        loadTeams();
+      }
+    });
   } else {
-    createTeamRequest(team)
-      .then((r) => r.json())
-      .then((status) => {
-        console.warn("status", status);
-        if (status.success) {
-          location.reload();
-        }
-      });
+    createTeamRequest(team).then((status) => {
+      if (status.success) {
+        $("#editForm").reset();
+        loadTeams();
+      }
+    });
   }
 }
 
@@ -111,8 +126,20 @@ function startEditTeam(id) {
 }
 
 function initEvents() {
-  const form = document.getElementById("editForm");
+  $("#search").addEventListener("input", (e) => {
+    const search = e.target.value.toLowerCase();
+    const teams = allTeams.filter((team) => {
+      return team.promotion.toLowerCase().includes(search);
+    });
+    displayTeams(teams);
+  });
+
+  const form = $("#editForm");
   form.addEventListener("submit", submitForm);
+  form.addEventListener("reset", () => {
+    console.warn("reset", reset++);
+    editId = undefined;
+  });
 
   form.querySelector("tbody").addEventListener("click", (e) => {
     if (e.target.matches("a.delete-btn")) {
@@ -125,7 +152,6 @@ function initEvents() {
     } else if (e.target.matches("a.edit-btn")) {
       const id = e.target.getAttribute("data-id");
       startEditTeam(id);
-      console.warn(e.target.parentNode.parentNode[0].innerHTML);
     }
   });
 }
